@@ -22,7 +22,7 @@ export asyncdispatch
 export SameSite
 
 when useHttpBeast:
-  import httpbeast except Settings, Request
+  import httpbeastfork except Settings, Request
   import options
   from nativesockets import close
 else:
@@ -85,7 +85,7 @@ type
 
   Startup = proc () {.closure, gcsafe.}
 
-const jesterVer = "0.6.0"
+const jesterVer = "1.0.0"
 
 proc doNothing(): Startup {.gcsafe.} =
   result = proc () {.closure, gcsafe.} =
@@ -543,10 +543,10 @@ proc serve*(
       AF_INET
   when useHttpBeast:
     run(
-      proc (req: httpbeast.Request): Future[void] =
+      proc (req: httpbeastfork.Request): Future[void] =
         {.gcsafe.}:
           result = handleRequest(jes, req),
-      httpbeast.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup, domain = domain)
+      httpbeastfork.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup, domain = domain)
     )
   else:
     self.httpServer = newAsyncHttpServer(reusePort=self.settings.reusePort, maxBody=self.settings.maxBody)
@@ -629,7 +629,7 @@ template resp*(code: HttpCode): typed =
   result.matched = true
   break route
 
-template redirect*(url: string, halt = true): typed =
+template redirect*(url: string, halt = true, httpStatusCode = Http303): typed =
   ## Redirects to ``url``. Returns from this request handler immediately.
   ##
   ## If ``halt`` is true, skips executing future handlers, too.
@@ -637,7 +637,7 @@ template redirect*(url: string, halt = true): typed =
   ## Any set response headers are preserved for this request.
   bind TCActionSend, newHttpHeaders
   result[0] = TCActionSend
-  result[1] = Http303
+  result[1] = httpStatusCode
   setHeader(result[2], "Location", url)
   result[3] = ""
   result.matched = true

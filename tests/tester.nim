@@ -162,6 +162,14 @@ proc allTest(useStdLib: bool) =
     check headers["bar"] == "bar"
     check headers["Content-Type"] == "text/plain"
 
+  test "redirect set http status code":
+    let resp = waitFor client.get(address & "/foo/redirectDefault")
+    check resp.code == Http303
+    let resp301 = waitFor client.get(address & "/foo/redirect301")
+    check resp301.code == Http301
+    let resp302 = waitFor client.get(address & "/foo/redirect302")
+    check resp302.code == Http302
+
   suite "static":
     test "index.html":
       let resp = waitFor client.get(address & "/foo/root")
