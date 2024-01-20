@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.6.0" # Be sure to update jester.jesterVer too!
+version       = "0.6.0" # Be sure to update jesterfork.jesterVer too!
 author        = "Dominik Picheta"
 description   = "A sinatra-like web framework for Nim."
 license       = "MIT"

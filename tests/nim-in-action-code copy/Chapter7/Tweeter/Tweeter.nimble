@@ -8,4 +8,4 @@ license       = "MIT"
 # Dependencies
 
 requires "nim >= 0.13.1"
-requires "jester >= 0.0.1"
+requires "jesterfork >= 0.0.1"

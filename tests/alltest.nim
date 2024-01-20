@@ -1,6 +1,6 @@
 # Copyright (C) 2018 Dominik Picheta
 # MIT License - Look at license.txt for details.
-import jester, asyncdispatch, strutils, random, os, asyncnet, re, typetraits
+import jesterfork, asyncdispatch, strutils, random, os, asyncnet, re, typetraits
 import json
 
 import alltest_router2

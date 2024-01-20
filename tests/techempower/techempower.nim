@@ -1,6 +1,6 @@
 import json, options
 
-import jester, jester/patterns
+import jesterfork, jesterfork/patterns
 
 settings:
   port = Port(8080)

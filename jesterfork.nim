@@ -5,8 +5,8 @@ import net, strtabs, re, tables, os, strutils, uri,
        logging, httpcore, asyncfile, macrocache, json, options,
        strformat
 
-import jester/private/[errorpages, utils]
-import jester/[request, patterns]
+import jesterfork/private/[errorpages, utils]
+import jesterfork/[request, patterns]
 
 from cgi import decodeData, decodeUrl, CgiError
 
@@ -1085,7 +1085,7 @@ proc createError(
   else:
     error("Expected exception type or set[HttpCode].", errorCond)
 
-const definedRoutes = CacheTable"jester.routes"
+const definedRoutes = CacheTable"jesterfork.routes"
 
 proc processRoutesBody(
   body: NimNode,
