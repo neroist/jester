@@ -22,7 +22,7 @@ export asyncdispatch
 export SameSite
 
 when useHttpBeast:
-  import httpbeast except Settings, Request
+  import httpbeastfork except Settings, Request
   import options
   from nativesockets import close
 else:
@@ -543,10 +543,10 @@ proc serve*(
       AF_INET
   when useHttpBeast:
     run(
-      proc (req: httpbeast.Request): Future[void] =
+      proc (req: httpbeastfork.Request): Future[void] =
         {.gcsafe.}:
           result = handleRequest(jes, req),
-      httpbeast.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup, domain = domain)
+      httpbeastfork.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup, domain = domain)
     )
   else:
     self.httpServer = newAsyncHttpServer(reusePort=self.settings.reusePort, maxBody=self.settings.maxBody)

@@ -4,11 +4,11 @@ from sequtils import map
 import private/utils
 
 when useHttpBeast:
-  import httpbeast except Settings
+  import httpbeastfork except Settings
   import options, httpcore
 
   type
-    NativeRequest* = httpbeast.Request
+    NativeRequest* = httpbeastfork.Request
 else:
   import asynchttpserver
 

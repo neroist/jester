@@ -7,8 +7,13 @@ This repo with jester is updated to work with Nim version 2.0
 * Dependency to `httpbeast` does not support Nim 2.0
 * Full support for Nim 2.0
 
-The minimum Nim version the fork supports is 1.6.18. Test are done with
-Nim 1.6.18 and stable (2.x.x) versions.
+**Jester & httpbeast:**
+* To use this package with `httpbeast`, you need the fork [`httpbeastfork`](https://github.com/ThomasTJdev/httpbeast_fork).
+
+**Breaking changes / Info:**
+* The minimum Nim version this fork supports is 1.6.18. Test are done with Nim 1.6.18 and stable (2.x.x) versions.
+* Support for `httpbeast` is dropped. Use [`httpbeastfork`](https://github.com/ThomasTJdev/httpbeast_fork).
+* Various pull requests from the main repo has been merged into this fork.
 
 
 # 🃏 Jester 🃏
