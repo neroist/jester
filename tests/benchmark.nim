@@ -4,7 +4,7 @@
 ## Benchmark.nim - This file is meant to be compared to Golang's stdlib
 ## HTTP server. The headers it sends match here.
 
-import jester, asyncdispatch, asyncnet
+import jesterfork, asyncdispatch, asyncnet
 
 when true:
   routes:

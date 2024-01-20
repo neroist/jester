@@ -1,7 +1,7 @@
 from std/cgi import decodeUrl
 from std/strformat import fmt
 from std/strutils import join
-import jester
+import jesterfork
 
 settings:
   port = Port(5454)

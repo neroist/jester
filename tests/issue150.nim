@@ -1,6 +1,6 @@
 from net import Port
 
-import jester
+import jesterfork
 
 settings:
   port = Port(5454)

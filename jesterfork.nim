@@ -5,8 +5,8 @@ import net, strtabs, re, tables, os, strutils, uri,
        logging, httpcore, asyncfile, macrocache, json, options,
        strformat
 
-import jester/private/[errorpages, utils]
-import jester/[request, patterns]
+import jesterfork/private/[errorpages, utils]
+import jesterfork/[request, patterns]
 
 from cgi import decodeData, decodeUrl, CgiError
 
@@ -22,7 +22,7 @@ export asyncdispatch
 export SameSite
 
 when useHttpBeast:
-  import httpbeast except Settings, Request
+  import httpbeastfork except Settings, Request
   import options
   from nativesockets import close
 else:
@@ -85,7 +85,7 @@ type
 
   Startup = proc () {.closure, gcsafe.}
 
-const jesterVer = "0.6.0"
+const jesterVer = "1.0.0"
 
 proc doNothing(): Startup {.gcsafe.} =
   result = proc () {.closure, gcsafe.} =
@@ -543,10 +543,10 @@ proc serve*(
       AF_INET
   when useHttpBeast:
     run(
-      proc (req: httpbeast.Request): Future[void] =
+      proc (req: httpbeastfork.Request): Future[void] =
         {.gcsafe.}:
           result = handleRequest(jes, req),
-      httpbeast.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup, domain = domain)
+      httpbeastfork.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup, domain = domain)
     )
   else:
     self.httpServer = newAsyncHttpServer(reusePort=self.settings.reusePort, maxBody=self.settings.maxBody)
@@ -1085,7 +1085,7 @@ proc createError(
   else:
     error("Expected exception type or set[HttpCode].", errorCond)
 
-const definedRoutes = CacheTable"jester.routes"
+const definedRoutes = CacheTable"jesterfork.routes"
 
 proc processRoutesBody(
   body: NimNode,
