@@ -85,7 +85,7 @@ type
 
   Startup = proc () {.closure, gcsafe.}
 
-const jesterVer = "0.6.0"
+const jesterVer = "1.0.0"
 
 proc doNothing(): Startup {.gcsafe.} =
   result = proc () {.closure, gcsafe.} =
