@@ -1,7 +1,7 @@
 # Copyright (C) 2015 Dominik Picheta
 # MIT License - Look at license.txt for details.
 import net, strtabs, re, tables, os, strutils, uri,
-       times, mimetypes, asyncnet, asyncdispatch, macros, md5,
+       times, mimetypes, asyncdispatch, macros, checksums/md5,
        logging, httpcore, asyncfile, macrocache, json, options,
        strformat
 
@@ -23,10 +23,10 @@ export SameSite
 
 when not useStdLib:
   import httpx except Settings, Request
-  import options
   from nativesockets import close
 else:
   import asynchttpserver except Request
+  import asyncnet
 
 type
   MatchProc* = proc (request: Request): Future[ResponseData] {.gcsafe, closure.}
@@ -189,7 +189,7 @@ proc sendStaticIfExists(
 ): Future[HttpCode] {.async.} =
   result = Http200
   for p in paths:
-    if existsFile(p):
+    if fileExists(p):
 
       var fp = getFilePermissions(p)
       if not fp.contains(fpOthersRead):
@@ -336,7 +336,7 @@ proc handleFileRequest(
   let pathDir = path.splitFile.dir & (if path.splitFile.dir[^1] == DirSep: "" else: $DirSep)
   let staticDir = jes.settings.staticDir & (if jes.settings.staticDir[^1] == DirSep: "" else: $DirSep)
   if pathDir.startsWith(staticDir):
-    if existsDir(path):
+    if dirExists(path):
       status = await sendStaticIfExists(
         req,
         @[path / "index.html", path / "index.htm"]
@@ -422,7 +422,8 @@ proc handleRequest(jes: Jester, httpReq: NativeRequest): Future[void] =
     let respDataFut = dispatchError(jes, req, initRouteError(exc))
     return handleRequestSlow(jes, req, respDataFut, true)
 
-  assert(not result.isNil, "Expected handleRequest to return a valid future.")
+  # this is unreachable code
+  # assert(not result.isNil, "Expected handleRequest to return a valid future.")
 
 proc newSettings*(
   port = Port(5000), staticDir = getCurrentDir() / "public",
@@ -532,15 +533,6 @@ proc serve*(
                    [$self.settings.port, self.settings.appName])
 
   var jes = self
-  let domain = block:
-    if self.settings.bindAddr != "":
-      let ip = self.settings.bindAddr.parseIpAddress()
-      if ip.family == IPv4:
-        AF_INET
-      else:
-        AF_INET6
-    else:
-      AF_INET
   when not useStdLib:
     run(
       proc (req: httpx.Request): Future[void] =
@@ -549,6 +541,16 @@ proc serve*(
       httpx.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup)
     )
   else:
+    let domain =
+      block:
+        if self.settings.bindAddr != "":
+          let ip = self.settings.bindAddr.parseIpAddress()
+          if ip.family == IPv4:
+            AF_INET
+          else:
+            AF_INET6
+        else:
+          AF_INET
     self.httpServer = newAsyncHttpServer(reusePort=self.settings.reusePort, maxBody=self.settings.maxBody)
     let serveFut = self.httpServer.serve(
       self.settings.port,
@@ -561,7 +563,7 @@ proc serve*(
       asyncCheck serveFut
     runForever()
 
-template setHeader*(headers: var ResponseHeaders, key, value: string): typed =
+template setHeader*(headers: var ResponseHeaders, key, value: string) =
   ## Sets a response header using the given key and value.
   ## Overwrites if the header key already exists.
   bind isNone
@@ -582,7 +584,7 @@ template setHeader*(headers: var ResponseHeaders, key, value: string): typed =
 
 template resp*(code: HttpCode,
                headers: openarray[tuple[key, val: string]],
-               content: string): typed =
+               content: string) =
   ## Sets ``(code, headers, content)`` as the response.
   bind TCActionSend
   result = (TCActionSend, code, result[2], content, true)
@@ -591,7 +593,7 @@ template resp*(code: HttpCode,
   break route
 
 
-template resp*(content: string, contentType = "text/html;charset=utf-8"): typed =
+template resp*(content: string, contentType = "text/html;charset=utf-8") =
   ## Sets ``content`` as the response; ``Http200`` as the status code
   ## and ``contentType`` as the Content-Type.
   bind TCActionSend, newHttpHeaders, strtabs.`[]=`
@@ -603,13 +605,13 @@ template resp*(content: string, contentType = "text/html;charset=utf-8"): typed 
   result.matched = true
   break route
 
-template resp*(content: JsonNode): typed =
+template resp*(content: JsonNode) =
   ## Serializes ``content`` as the response, sets ``Http200`` as status code
   ## and "application/json" Content-Type.
   resp($content, contentType="application/json")
 
 template resp*(code: HttpCode, content: string,
-               contentType = "text/html;charset=utf-8"): typed =
+               contentType = "text/html;charset=utf-8") =
   ## Sets ``content`` as the response; ``code`` as the status code
   ## and ``contentType`` as the Content-Type.
   bind TCActionSend, newHttpHeaders
@@ -620,7 +622,7 @@ template resp*(code: HttpCode, content: string,
   result.matched = true
   break route
 
-template resp*(code: HttpCode): typed =
+template resp*(code: HttpCode) =
   ## Responds with the specified ``HttpCode``. This ensures that error handlers
   ## are called.
   bind TCActionSend, newHttpHeaders
@@ -629,7 +631,7 @@ template resp*(code: HttpCode): typed =
   result.matched = true
   break route
 
-template redirect*(url: string, halt = true, httpStatusCode = Http303): typed =
+template redirect*(url: string, halt = true, httpStatusCode = Http303) =
   ## Redirects to ``url``. Returns from this request handler immediately.
   ##
   ## If ``halt`` is true, skips executing future handlers, too.
@@ -646,21 +648,21 @@ template redirect*(url: string, halt = true, httpStatusCode = Http303): typed =
   else:
     break route
 
-template pass*(): typed =
+template pass*() =
   ## Skips this request handler.
   ##
   ## If you want to stop this request from going further use ``halt``.
   result.action = TCActionPass
   break outerRoute
 
-template cond*(condition: bool): typed =
+template cond*(condition: bool) =
   ## If ``condition`` is ``False`` then ``pass`` will be called,
   ## i.e. this request handler will be skipped.
   if not condition: break outerRoute
 
 template halt*(code: HttpCode,
                headers: openarray[tuple[key, val: string]],
-               content: string): typed =
+               content: string) =
   ## Immediately replies with the specified request. This means any further
   ## code will not be executed after calling this template in the current
   ## route.
@@ -672,21 +674,21 @@ template halt*(code: HttpCode,
   result.matched = true
   break allRoutes
 
-template halt*(): typed =
+template halt*() =
   ## Halts the execution of this request immediately. Returns a 404.
   ## All previously set values are **discarded**.
   halt(Http404, {"Content-Type": "text/html;charset=utf-8"}, error($Http404, jesterVer))
 
-template halt*(code: HttpCode): typed =
+template halt*(code: HttpCode) =
   halt(code, {"Content-Type": "text/html;charset=utf-8"}, error($code, jesterVer))
 
-template halt*(content: string): typed =
+template halt*(content: string) =
   halt(Http404, {"Content-Type": "text/html;charset=utf-8"}, content)
 
-template halt*(code: HttpCode, content: string): typed =
+template halt*(code: HttpCode, content: string) =
   halt(code, {"Content-Type": "text/html;charset=utf-8"}, content)
 
-template attachment*(filename = ""): typed =
+template attachment*(filename = "") =
   ## Instructs the browser that the response should be stored on disk
   ## rather than displayed in the browser.
   var disposition = "attachment"
@@ -699,7 +701,7 @@ template attachment*(filename = ""): typed =
       setHeader(result[2], "Content-Type", getMimetype(request.settings.mimes, ext))
   setHeader(result[2], "Content-Disposition", disposition)
 
-template sendFile*(filename: string): typed =
+template sendFile*(filename: string) =
   ## Sends the file at the specified filename as the response.
   result[0] = TCActionRaw
   let sendFut = sendStaticIfExists(request, @[filename])

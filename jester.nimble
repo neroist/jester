@@ -11,6 +11,8 @@ skipDirs = @["tests"]
 # Deps
 
 requires "nim >= 1.6.18"
+requires "checksums >= 0.1.0"
+requires "httpx >= 0.3.7"
 
 when not defined(windows):
   requires "https://github.com/ThomasTJdev/httpbeast_fork >= 1.0.0"

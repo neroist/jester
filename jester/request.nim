@@ -5,7 +5,7 @@ import private/utils
 
 when not useStdLib:
   import httpx except Settings
-  import options, httpcore
+  import httpcore
 
   type
     NativeRequest* = httpx.Request

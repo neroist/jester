@@ -22,7 +22,7 @@ type
     numThreads*: int # Only available with Httpbeast (`useHttpBeast = true`)
     startup*: proc () {.closure, gcsafe.} # Only available with Httpbeast (`useHttpBeast = true`)
 
-  JesterError* = object of Exception
+  JesterError* = object of CatchableError
 
 proc parseUrlQuery*(query: string, result: var Table[string, string])
     {.deprecated: "use stdlib cgi/decodeData".} =
@@ -40,7 +40,7 @@ proc parseUrlQuery*(query: string, result: var Table[string, string])
     inc(i) # Skip &
     result[decodeUrl(key)] = decodeUrl(val)
 
-template parseContentDisposition(): typed =
+template parseContentDisposition() =
   var hCount = 0
   while hCount < hValue.len()-1:
     var key = ""
@@ -102,7 +102,7 @@ proc parseMultiPart*(body: string, boundary: string): MultiData =
       inc(i)
     i += body.skipWhitespace(i)
 
-    result.add(name, newPart)
+    result[name] = newPart
 
 proc parseMPFD*(contentType: string, body: string): MultiData =
   var boundaryEqIndex = contentType.find("boundary=")+9
