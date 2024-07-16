@@ -1,4 +1,4 @@
-import uri, cgi, tables, logging, strutils, re, options
+import uri, cgi, tables, logging, strutils, regex, options
 from sequtils import map
 
 import private/utils
@@ -19,7 +19,7 @@ type
   Request* = object
     req: NativeRequest
     patternParams: Option[Table[string, string]]
-    reMatches: array[MaxSubpatterns, string]
+    reMatch: RegexMatch2
     settings*: Settings
 
 proc body*(req: Request): string =
@@ -156,8 +156,15 @@ proc formData*(req: Request): MultiData =
   if contentType.startsWith("multipart/form-data"):
     result = parseMPFD(contentType, req.body)
 
-proc matches*(req: Request): array[MaxSubpatterns, string] =
-  req.reMatches
+proc match*(req: Request): RegexMatch2 =
+  req.reMatch
+
+proc captures*(req: Request): seq[string] =
+  for captureBoundaries in req.reMatch.captures:
+    result.add req.path[captureBoundaries]
+
+proc namedGroups*(req: Request): OrderedTable[string, int16] =
+  req.reMatch.namedGroups
 
 proc secure*(req: Request): bool =
   if req.headers.hasKey("x-forwarded-proto"):
@@ -229,5 +236,5 @@ proc getNativeReq*(req: Request): NativeRequest =
 proc setPatternParams*(req: var Request, p: Table[string, string]) =
   req.patternParams = some(p)
 
-proc setReMatches*(req: var Request, r: array[MaxSubpatterns, string]) =
-  req.reMatches = r
+proc setReMatch*(req: var Request, r: RegexMatch2) =
+  req.reMatch = r

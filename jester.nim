@@ -1,9 +1,9 @@
 # Copyright (C) 2015 Dominik Picheta
 # MIT License - Look at license.txt for details.
-import net, strtabs, re, tables, os, strutils, uri,
+import net, strtabs, tables, os, strutils, uri,
        times, mimetypes, asyncdispatch, macros, checksums/md5,
        logging, httpcore, asyncfile, macrocache, json, options,
-       strformat
+       strformat, regex
 
 import jester/private/[errorpages, utils]
 import jester/[request, patterns]
@@ -905,10 +905,10 @@ proc escapeRegex(s: string): string =
       result.add(i)
 
 proc createRegexPattern(
-  routeNode, reMatchesSym, patternMatchSym: NimNode,
+  routeNode, reMatchSym, patternMatchSym: NimNode,
   pathPrefix: string
 ): NimNode {.compileTime.} =
-  # -> let <patternMatchSym> = find(request.pathInfo, <pattern>, <reMatches>)
+  # -> let <patternMatchSym> = find(request.pathInfo, <pattern>, <reMatch>)
   var strNode = routeNode[1].copyNimTree()
   strNode[1].strVal = escapeRegex(pathPrefix) & strNode[1].strVal
   return newLetStmt(
@@ -917,7 +917,7 @@ proc createRegexPattern(
       bindSym"find",
       parseExpr("request.pathInfo"),
       strNode,
-      reMatchesSym
+      reMatchSym
     )
   )
 
@@ -932,7 +932,7 @@ proc determinePatternType(pattern: NimNode): MatchType {.compileTime.} =
   of nnkCallStrLit:
     expectKind(pattern[0], nnkIdent)
     case ($pattern[0]).normalize
-    of "re": return MRegex
+    of "re2": return MRegex
     else:
       macros.error("Invalid pattern type: " & $pattern[0])
   else:
@@ -971,10 +971,9 @@ proc createRoute(
   var patternMatchSym = genSym(nskLet, "patternMatchRet")
 
   # Only used for Regex patterns.
-  var reMatchesSym = genSym(nskVar, "reMatches")
-  var reMatches = parseExpr("var reMatches: array[20, string]")
-  reMatches[0][0] = reMatchesSym
-  reMatches[0][1][1] = bindSym("MaxSubpatterns")
+  var reMatchSym = genSym(nskVar, "reMatch")
+  var reMatch = parseExpr("var reMatch: RegexMatch2")
+  reMatch[0][0] = reMatchSym
 
   let patternType = determinePatternType(routeNode[1])
   case patternType
@@ -983,9 +982,9 @@ proc createRoute(
   of MSpecial:
     dest.add createJesterPattern(routeNode, patternMatchSym, pathPrefix)
   of MRegex:
-    dest.add reMatches
+    dest.add reMatch
     dest.add createRegexPattern(
-      routeNode, reMatchesSym, patternMatchSym, pathPrefix
+      routeNode, reMatchSym, patternMatchSym, pathPrefix
     )
 
   var ifStmtBody = newStmtList()
@@ -996,9 +995,9 @@ proc createRoute(
     ifStmtBody.add newCall(bindSym"setPatternParams", newIdentNode"request",
                            newDotExpr(patternMatchSym, newIdentNode"params"))
   of MRegex:
-    # -> setReMatches(request, <reMatchesSym>)
-    ifStmtBody.add newCall(bindSym"setReMatches", newIdentNode"request",
-                           reMatchesSym)
+    # -> setReMatch(request, <reMatchSym>)
+    ifStmtBody.add newCall(bindSym"setReMatch", newIdentNode"request",
+                           reMatchSym)
 
   ifStmtBody.add routeNode[2].skipDo()
 
@@ -1024,7 +1023,7 @@ proc createRoute(
     of MSpecial:
       newDotExpr(patternMatchSym, newIdentNode("matched"))
     of MRegex:
-      infix(patternMatchSym, "!=", newIntLitNode(-1))
+      infix(patternMatchSym, "!=", ident"false")
 
   # -> if <patternMatchSym>.matched: <innerBlockStmt>
   var ifStmt = newIfStmt((ifCond, innerBlockStmt))
@@ -1245,7 +1244,7 @@ proc routesEx(name: string, body: NimNode): NimNode =
   let setDefaultRespIdent = bindSym"setDefaultResp"
   matchBody.add newCall(setDefaultRespIdent)
   # TODO: This diminishes the performance. Would be nice to only include it
-  # TODO: when setPatternParams or setReMatches is used.
+  # TODO: when setPatternParams or setReMatch is used.
   matchBody.add parseExpr("var request = request")
 
   # HTTP router case statement nodes:
