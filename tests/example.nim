@@ -1,4 +1,4 @@
-import jesterfork, asyncdispatch, htmlgen
+import jester, asyncdispatch, htmlgen
 
 routes:
   get "/":

@@ -1,4 +1,4 @@
-import jesterfork, asyncdispatch, asyncnet
+import jester, asyncdispatch, asyncnet
 
 proc match(request: Request): Future[ResponseData] {.async.} =
   block route:

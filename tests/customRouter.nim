@@ -1,4 +1,4 @@
-import jesterfork
+import jester
 
 router myrouter:
   get "/":

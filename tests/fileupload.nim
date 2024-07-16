@@ -1,6 +1,6 @@
 # Issue #22
 
-import os, re, jesterfork, asyncdispatch, htmlgen, asyncnet
+import os, re, jester, asyncdispatch, htmlgen, asyncnet
 
 routes:
   get "/":

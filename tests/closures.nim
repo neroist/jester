@@ -1,6 +1,6 @@
 # Issue #63
 
-import jesterfork, asyncdispatch
+import jester, asyncdispatch
 
 proc configRoutes(closureVal: string) =
   routes:

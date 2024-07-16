@@ -1,6 +1,6 @@
 import re
 
-import jesterfork
+import jester
 
 router external:
   get "/simple":
