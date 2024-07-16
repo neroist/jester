@@ -21,8 +21,8 @@ export asyncdispatch
 
 export SameSite
 
-when useHttpBeast:
-  import httpbeastfork except Settings, Request
+when not useStdLib:
+  import httpx except Settings, Request
   import options
   from nativesockets import close
 else:
@@ -52,7 +52,7 @@ type
     errorHandler: ErrorProc
 
   Jester* = object
-    when not useHttpBeast:
+    when not not useStdLib:
       httpServer*: AsyncHttpServer
     settings: Settings
     matchers: seq[Matcher]
@@ -107,7 +107,7 @@ proc createResponse(status: HttpCode, headers: RawHeaders): string =
   return "HTTP/1.1 " & $status & "\c\L" & createHeaders(headers) & "\c\L\c\L"
 
 proc unsafeSend(request: Request, content: string) =
-  when useHttpBeast:
+  when not useStdLib:
     request.getNativeReq.unsafeSend(content)
   else:
     # TODO: This may cause issues if we send too fast.
@@ -120,7 +120,7 @@ proc newCompletedFuture(): Future[void] =
 proc send(
   request: Request, code: HttpCode, headers: Option[RawHeaders], body: string
 ): Future[void] =
-  when useHttpBeast:
+  when not useStdLib:
     let h =
       if headers.isNone: ""
       else: headers.get().createHeaders
@@ -247,7 +247,7 @@ proc close*(request: Request) =
   ##
   ## Routes using this procedure must enable raw mode.
   let nativeReq = request.getNativeReq()
-  when useHttpBeast:
+  when not useStdLib:
     nativeReq.forget()
   nativeReq.client.close()
 
@@ -541,12 +541,12 @@ proc serve*(
         AF_INET6
     else:
       AF_INET
-  when useHttpBeast:
+  when not useStdLib:
     run(
-      proc (req: httpbeastfork.Request): Future[void] =
+      proc (req: httpx.Request): Future[void] =
         {.gcsafe.}:
           result = handleRequest(jes, req),
-      httpbeastfork.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup, domain = domain)
+      httpx.initSettings(self.settings.port, self.settings.bindAddr, self.settings.numThreads, startup = self.settings.startup)
     )
   else:
     self.httpServer = newAsyncHttpServer(reusePort=self.settings.reusePort, maxBody=self.settings.maxBody)

@@ -3,12 +3,12 @@ from sequtils import map
 
 import private/utils
 
-when useHttpBeast:
-  import httpbeastfork except Settings
+when not useStdLib:
+  import httpx except Settings
   import options, httpcore
 
   type
-    NativeRequest* = httpbeastfork.Request
+    NativeRequest* = httpx.Request
 else:
   import asynchttpserver
 
@@ -27,7 +27,7 @@ proc body*(req: Request): string =
   ##
   ## You're probably looking for ``formData``
   ## instead.
-  when useHttpBeast:
+  when not useStdLib:
     req.req.body.get("")
   else:
     req.req.body
@@ -35,7 +35,7 @@ proc body*(req: Request): string =
 proc headers*(req: Request): HttpHeaders =
   ## Headers received with the request.
   ## Retrieving these is case insensitive.
-  when useHttpBeast:
+  when not useStdLib:
     if req.req.headers.isNone:
       newHttpHeaders()
     else:
@@ -45,7 +45,7 @@ proc headers*(req: Request): HttpHeaders =
 
 proc path*(req: Request): string =
   ## Path of request without the query string.
-  when useHttpBeast:
+  when not useStdLib:
     let p = req.req.path.get("")
     let queryStart = p.find('?')
     if unlikely(queryStart != -1):
@@ -58,7 +58,7 @@ proc path*(req: Request): string =
 
 proc query*(req: Request): string =
   ## Query string of request
-  when useHttpBeast:
+  when not useStdLib:
     let p = req.req.path.get("")
     let queryStart = p.find('?')
     if likely(queryStart != -1):
@@ -71,7 +71,7 @@ proc query*(req: Request): string =
 
 proc reqMethod*(req: Request): HttpMethod =
   ## Request method, eg. HttpGet, HttpPost
-  when useHttpBeast:
+  when not useStdLib:
     req.req.httpMethod.get()
   else:
     req.req.reqMethod
@@ -81,7 +81,7 @@ proc reqMeth*(req: Request): HttpMethod {.deprecated.} =
 
 proc ip*(req: Request): string =
   ## IP address of the requesting client.
-  when useHttpBeast:
+  when not useStdLib:
     result = req.req.ip
   else:
     result = req.req.hostname
