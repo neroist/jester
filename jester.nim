@@ -973,6 +973,8 @@ proc determinePatternType(pattern: NimNode): MatchType {.compileTime.} =
     expectKind(pattern[0], nnkIdent)
     case ($pattern[0]).normalize
     of "re2": return MRegex
+    of "re":
+      macros.error("Please use `re2` instead of `re`")
     else:
       macros.error("Invalid pattern type: " & $pattern[0])
   else:
@@ -1286,7 +1288,6 @@ proc routesEx(name: string, body: NimNode): NimNode =
   # TODO: This diminishes the performance. Would be nice to only include it
   # TODO: when setPatternParams or setReMatch is used.
   matchBody.add parseExpr("var request = request")
-
   # HTTP router case statement nodes:
   var caseStmt = newNimNode(nnkCaseStmt)
   caseStmt.add parseExpr("request.reqMethod")
@@ -1473,7 +1474,7 @@ proc routesEx(name: string, body: NimNode): NimNode =
   
 
   # TODO: Replace `body`, `headers`, `code` in routes with `result[i]` to
-  # get these shortcuts back without sacrificing usability.
+  # TODO: get these shortcuts back without sacrificing usability.
   # TODO2: Make sure you replace what `guessAction` used to do for this.
 
   # echo toStrLit(result)
