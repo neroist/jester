@@ -163,8 +163,11 @@ proc captures*(req: Request): seq[string] =
   for captureBoundaries in req.reMatch.captures:
     result.add req.path[captureBoundaries]
 
-proc namedGroups*(req: Request): OrderedTable[string, int16] =
-  req.reMatch.namedGroups
+proc namedGroups*(req: Request): OrderedTable[string, string] =
+  result = initOrderedTable[string, string](req.reMatch.namedGroups.len)
+
+  for key, val in req.reMatch.namedGroups:
+    result[key] = req.path[req.reMatch.captures[val]]
 
 proc secure*(req: Request): bool =
   if req.headers.hasKey("x-forwarded-proto"):
