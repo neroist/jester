@@ -163,6 +163,8 @@ proc captures*(req: Request): seq[string] =
   for captureBoundaries in req.reMatch.captures:
     result.add req.path[captureBoundaries]
 
+proc matches*(req: Request): seq[string] {.deprecated: "use `captures` as a drop-in replacement".} = req.captures
+
 proc namedGroups*(req: Request): OrderedTable[string, string] =
   result = initOrderedTable[string, string](req.reMatch.namedGroups.len)
 
