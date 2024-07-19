@@ -93,8 +93,8 @@ Regex can also be used as a route pattern. The subpattern captures will be
 placed in ``request.matches`` when a route is matched. For example:
 
 ```nim
-get re"^\/([0-9]{2})\.html$":
-  resp request.matches[0]
+get re2"^/([0-9]{2})\.html$":
+  resp request.captures[0]
 ```
 
 This will match URLs of the form ``/15.html``. In this case
