@@ -3,7 +3,7 @@
 import net, strtabs, tables, os, strutils, uri,
        times, mimetypes, asyncdispatch, macros, checksums/md5,
        logging, httpcore, asyncfile, macrocache, json, options,
-       strformat, regex
+       strformat, regex, zippy
 
 import jester/private/[errorpages, utils]
 import jester/[request, patterns]
@@ -183,6 +183,35 @@ proc send*(request: Request, status: HttpCode, headers: RawHeaders,
   request.sendHeaders(status, headers)
   request.send(content)
 
+proc compress*(req: Request, data: var string, outHeaders: var RawHeaders) =
+  if not req.headers.hasKey("Accept-Encoding"): return
+
+  var
+    compressionAlgorithm: CompressedDataFormat = dfDetect
+    contentEncoding: string = "identity"
+  
+  defer:
+    if compressionAlgorithm != dfDetect:
+      data = data.compress(BestSpeed, compressionAlgorithm)
+    outHeaders.add ("Content-Encoding", contentEncoding)
+
+  # TODO brotli compression
+  # TODO sort by q-factor (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding#q)
+  # TODO support `*` (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding#sect2)
+  for encoding in split($req.headers["Accept-Encoding"], ","):
+    if encoding.startsWith("identity"): break
+
+    if encoding.startsWith("gzip") or encoding.startsWith("x-gzip"):
+      compressionAlgorithm = dfGzip
+      contentEncoding = "gzip"
+    elif encoding.startsWith("zlib"):
+      compressionAlgorithm = dfZlib
+      contentEncoding = "zlib"
+    elif encoding.startsWith("deflate"):
+      compressionAlgorithm = dfDeflate
+      contentEncoding = "deflate"
+ 
+
 # TODO: Cannot capture 'paths: varargs[string]' here.
 proc sendStaticIfExists(
   req: Request, paths: seq[string]
@@ -202,21 +231,23 @@ proc sendStaticIfExists(
         else: ""
       )
       if fileSize < 10_000_000: # 10 mb
-        var file = readFile(p)
+        var
+          file = readFile(p)
+          headers = @{"Content-Type": mimetype}
 
-        var hashed = getMD5(file)
+        compress(req, file, headers)
+
+        let hashed = getMD5(file)
+        headers.add ("ETag", hashed)
 
         # If the user has a cached version of this file and it matches our
         # version, let them use it
         if req.headers.hasKey("If-None-Match") and req.headers["If-None-Match"] == hashed:
           await req.statusContent(Http304, "", none[RawHeaders]())
         else:
-          await req.statusContent(Http200, file, some(@({
-            "Content-Type": mimetype,
-            "ETag": hashed
-          })))
+          await req.statusContent(Http200, file, some(headers))
       else:
-        let headers = @({
+        var headers = @({
           "Content-Type": mimetype,
           "Content-Length": $fileSize
         })
@@ -584,16 +615,18 @@ template setHeader*(headers: var ResponseHeaders, key, value: string) =
 
 template resp*(code: HttpCode,
                headers: openarray[tuple[key, val: string]],
-               content: string) =
+               content: string, compressContent: bool = true) =
   ## Sets ``(code, headers, content)`` as the response.
   bind TCActionSend
   result = (TCActionSend, code, result[2], content, true)
   for header in headers:
     setHeader(result[2], header[0], header[1])
+  if compressContent:
+    compress(request, result[3], responseHeaders.get())
   break route
 
 
-template resp*(content: string, contentType = "text/html;charset=utf-8") =
+template resp*(content: string, contentType = "text/html;charset=utf-8", compressContent: bool = true) =
   ## Sets ``content`` as the response; ``Http200`` as the status code
   ## and ``contentType`` as the Content-Type.
   bind TCActionSend, newHttpHeaders, strtabs.`[]=`
@@ -601,7 +634,9 @@ template resp*(content: string, contentType = "text/html;charset=utf-8") =
   result[1] = Http200
   setHeader(result[2], "Content-Type", contentType)
   result[3] = content
-  # This will be set by our macro, so this is here for those not using it.
+  if compressContent:
+    compress(request, result[3], responseHeaders.get())
+  # This will be set by our macro, so this is here for those .not using it.
   result.matched = true
   break route
 
@@ -611,7 +646,7 @@ template resp*(content: JsonNode) =
   resp($content, contentType="application/json")
 
 template resp*(code: HttpCode, content: string,
-               contentType = "text/html;charset=utf-8") =
+               contentType = "text/html;charset=utf-8", compressContent: bool = true) =
   ## Sets ``content`` as the response; ``code`` as the status code
   ## and ``contentType`` as the Content-Type.
   bind TCActionSend, newHttpHeaders
@@ -619,6 +654,8 @@ template resp*(code: HttpCode, content: string,
   result[1] = code
   setHeader(result[2], "Content-Type", contentType)
   result[3] = content
+  if compressContent:
+    compress(request, result[3], responseHeaders.get())
   result.matched = true
   break route
 
@@ -662,7 +699,7 @@ template cond*(condition: bool) =
 
 template halt*(code: HttpCode,
                headers: openarray[tuple[key, val: string]],
-               content: string) =
+               content: string, compressContent: bool = true) =
   ## Immediately replies with the specified request. This means any further
   ## code will not be executed after calling this template in the current
   ## route.
@@ -671,6 +708,8 @@ template halt*(code: HttpCode,
   result[1] = code
   result[2] = some(@headers)
   result[3] = content
+  if compressContent:
+    compress(request, result[3], responseHeaders.get())
   result.matched = true
   break allRoutes
 
