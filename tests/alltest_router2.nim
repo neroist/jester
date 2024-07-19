@@ -1,5 +1,3 @@
-import re
-
 import jester
 
 router external:
@@ -9,5 +7,5 @@ router external:
   get "/params/@foo":
     resp @"foo"
 
-  get re"/\(foobar\)/(.+)/":
-    resp request.matches[0]
+  get re2"/\(foobar\)/(.+)/":
+    resp request.captures[0]
