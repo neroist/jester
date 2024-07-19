@@ -10,6 +10,7 @@ import jester/[request, patterns]
 
 from cgi import decodeData, decodeUrl, CgiError
 
+export regex
 export request
 export strtabs
 export tables
