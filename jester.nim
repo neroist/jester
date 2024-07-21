@@ -186,32 +186,25 @@ proc send*(request: Request, status: HttpCode, headers: RawHeaders,
 
 proc compress*(req: Request, data: var string, outHeaders: var RawHeaders) =
   if not req.headers.hasKey("Accept-Encoding"): return
+  if data.len < 860: return # data not big enough to justify compression
 
-  var
-    compressionAlgorithm: CompressedDataFormat = dfDetect
-    contentEncoding: string = "identity"
-  
-  defer:
-    if compressionAlgorithm != dfDetect:
-      data = data.compress(BestSpeed, compressionAlgorithm)
-    outHeaders.add ("Content-Encoding", contentEncoding)
+  # body already compressed
+  for i in outHeaders:
+    if i.key == "Content-Encoding": return
 
   # TODO brotli compression
   # TODO sort by q-factor (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding#q)
   # TODO support `*` (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding#sect2)
-  for encoding in split($req.headers["Accept-Encoding"], ","):
-    if encoding.startsWith("identity"): break
-
-    if encoding.startsWith("gzip") or encoding.startsWith("x-gzip"):
-      compressionAlgorithm = dfGzip
-      contentEncoding = "gzip"
-    elif encoding.startsWith("zlib"):
-      compressionAlgorithm = dfZlib
-      contentEncoding = "zlib"
-    elif encoding.startsWith("deflate"):
-      compressionAlgorithm = dfDeflate
-      contentEncoding = "deflate"
- 
+  let encodings = $req.headers["Accept-Encoding"]
+  if encodings.contains("gzip") or encodings.contains("x-gzip") or encodings.contains("*"):
+    data = data.compress(BestSpeed, dfGzip)
+    outHeaders.add ("Content-Encoding", "gzip")
+  elif encodings.contains("deflate"):
+    data = data.compress(BestSpeed, dfDeflate)
+    outHeaders.add ("Content-Encoding", "deflate")
+  elif encodings.contains("zlib"):
+    data = data.compress(BestSpeed, dfZlib)
+    outHeaders.add ("Content-Encoding", "zlib")
 
 # TODO: Cannot capture 'paths: varargs[string]' here.
 proc sendStaticIfExists(
